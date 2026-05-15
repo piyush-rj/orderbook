@@ -31,6 +31,7 @@ export const authOption: AuthOptions = {
                         user,
                         account,
                     });
+                    console.log("response from backend is --------> ", response);
 
                     const result = response.data;
 

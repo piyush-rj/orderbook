@@ -12,8 +12,8 @@ export default class UserAuth {
         image: z.string(),
     });
 
-    static async sign_in(req: Request, res: Response) {
-        const { data, success } = this.user_auth_schema.safeParse(req.body);
+    static async sign_in(req: Request, res: Response): Promise<void> {
+        const { data, success } = UserAuth.user_auth_schema.safeParse(req.body.user);
         if (!success) {
             ResponseWriter.invalid_data(res);
             return;

@@ -2,5 +2,6 @@ import { ENV } from "@/config/config.env";
 
 export default class API {
     static BASE_URL = ENV.NEXT_PUBLIC_BACKEND_URL;
-    static SIGNIN_URL = `${this.BASE_URL}/sign-in`;
+    static API_URL = this.BASE_URL + "/api/v1";
+    static SIGNIN_URL = `${this.API_URL}/sign-in`;
 }

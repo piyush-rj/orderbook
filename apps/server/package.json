@@ -12,9 +12,16 @@
     "dependencies": {
         "@types/express": "^5.0.6",
         "@types/jsonwebtoken": "^9.0.10",
+        "chalk": "^5.6.2",
         "database": "workspace:*",
         "express": "^5.2.1",
         "jsonwebtoken": "^9.0.3",
-        "zod": "^4.4.3"
+        "zod": "^4.4.3",
+        "@orderbook/types": "workspace:*"
+    },
+    "scripts": {
+        "dev": "bun run index.ts",
+        "lint": "tsc --noEmit",
+        "format": "prettier --write --tab-width 4 \"**/*.{ts,json}\""
     }
 }

@@ -13,11 +13,117 @@ datasource db {
 }
 
 model User {
-  id  String @id  @default(cuid())
-  name String
-  email String @unique
+  id    String  @id @default(cuid())
+  name  String
+  email String  @unique
   image String?
+
+  orders   Order[]
+  balances Balance[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Market {
+  id          String @id @default(cuid())
+  name        String
+  description String
+
+  status MarketStatus @default(OPEN)
+
+  baseId String
+  base   Asset  @relation("BaseAsset", fields: [baseId], references: [id])
+
+  quoteId String
+  quote   Asset  @relation("QuoteAsset", fields: [quoteId], references: [id])
+
+  tickSize Decimal @db.Decimal(38, 18)
+  lotSize  Decimal @db.Decimal(38, 18)
+  minQty   Decimal @db.Decimal(38, 18)
+
+  orders Order[]
+  trades Trade[]
+
+  createdAt DateTime @default(now())
+}
+
+model Asset {
+  id       String @id @default(cuid())
+  name     String
+  symbol   String
+  decimals Int
+
+  balances     Balance[]
+  baseMarkets  Market[]  @relation("BaseAsset")
+  quoteMarkets Market[]  @relation("QuoteAsset")
+}
+
+model Balance {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  locked    Decimal @db.Decimal(38, 18)
+  available Decimal @db.Decimal(38, 18)
+
+  assetId String
+  asset   Asset  @relation(fields: [assetId], references: [id])
+
+  updatedAt DateTime @updatedAt
+}
+
+model Trade {
+  id       String  @id @default(cuid())
+  market   Market? @relation(fields: [marketId], references: [id])
+  marketId String?
+}
+
+model Order {
+  id            String @id @default(cuid())
+  clientOrderId String
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  marketId String
+  market   Market @relation(fields: [marketId], references: [id])
+
+  side           Side
+  type           OrderType
+  price          Decimal     @db.Decimal(38, 18)
+  quantity       Decimal     @db.Decimal(38, 18)
+  filledQuantity Decimal     @default(0) @db.Decimal(38, 18)
+  status         OrderStatus @default(NEW)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, clientOrderId])
+  @@index([userId, status])
+  @@index([marketId, status])
+}
+
+enum OrderStatus {
+  NEW
+  OPEN
+  FILLED
+  CANCELED
+}
+
+enum OrderType {
+  LIMIT
+  MARKET
+}
+
+enum Side {
+  BUY
+  SELL
+}
+
+enum MarketStatus {
+  OPEN
+  PAUSED
+  CLOSED
 }
