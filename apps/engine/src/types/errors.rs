@@ -1,0 +1,4 @@
+pub enum EngineError {
+    OrderNotFound,
+
+}
