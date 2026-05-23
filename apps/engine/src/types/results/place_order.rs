@@ -1,6 +1,7 @@
 use crate::types::{OrderId, OrderStatus, Qty, Trade};
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlaceOrderResult {
     pub order_id: OrderId,
     pub trades: Vec<Trade>,

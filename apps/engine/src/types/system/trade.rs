@@ -1,6 +1,7 @@
 use crate::types::{OrderId, Price, Qty, Side, TradeId};
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Trade {
     pub trade_id: TradeId,
     pub maker_order_id: OrderId,

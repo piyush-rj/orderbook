@@ -27,11 +27,17 @@ impl OrderBook {
 
     pub fn place_order(&mut self, side: Side, price: Price, quantity: Qty, order_type: OrderType) -> PlaceOrderResult {
         if quantity == 0 {
+            eprintln!("[book] REJECT zero-qty order");
             return PlaceOrderResult::rejected(self.next_order_id, quantity);
         }
 
         let mut taker_order = Order::new(self.next_order_id, side, price, quantity, order_type, quantity);
         self.next_order_id += 1;
+
+        eprintln!(
+            "[book] taker #{} {:?} {:?} qty={} @ {}",
+            taker_order.id, taker_order.order_type, taker_order.side, taker_order.quantity, taker_order.price
+        );
 
         let mut trades: Vec<Trade> = Vec::new();
 
@@ -70,6 +76,10 @@ impl OrderBook {
             let match_quantity = taker_order.remaining.min(maker.remaining);
 
             let trade = Trade::new(self.next_trade_id, maker.id, taker_order.id, best_price, match_quantity, side);
+            eprintln!(
+                "[book] MATCH taker #{} <-> maker #{} qty={} @ {}",
+                taker_order.id, maker.id, match_quantity, best_price
+            );
             trades.push(trade);
 
             self.next_trade_id += 1;
@@ -104,9 +114,12 @@ impl OrderBook {
 
         if taker_remaining_qty > 0 {
             match taker_order_type {
-                OrderType::Limit => self.add_as_resting_order(taker_order),
+                OrderType::Limit => {
+                    eprintln!("[book] REST #{} qty={} @ {}", taker_id, taker_remaining_qty, price);
+                    self.add_as_resting_order(taker_order);
+                }
                 OrderType::Market => {
-                    // drop the order
+                    eprintln!("[book] DROP #{} qty={} (market leftover)", taker_id, taker_remaining_qty);
                 }
             }
         }
@@ -131,7 +144,10 @@ impl OrderBook {
     pub fn cancel_order(&mut self, order_id: OrderId) -> CancelOrderResult {
         let (price, side) = match self.order_map.get(&order_id) {
             Some(&(p, s)) => (p, s),
-            None => return CancelOrderResult::new(order_id, OrderStatus::Rejected, 0, Side::Buy, 0),
+            None => {
+                eprintln!("[book] CANCEL REJECT #{} not found", order_id);
+                return CancelOrderResult::new(order_id, OrderStatus::Rejected, 0, Side::Buy, 0);
+            }
         };
 
         let queue = match side {
@@ -150,6 +166,10 @@ impl OrderBook {
         }
 
         self.order_map.remove(&order_id);
+        eprintln!(
+            "[book] CANCEL #{} {:?} qty={} @ {}",
+            order_id, side, removed.remaining, price
+        );
         CancelOrderResult::new(order_id, OrderStatus::Cancelled, removed.remaining, side, price)
     }
 

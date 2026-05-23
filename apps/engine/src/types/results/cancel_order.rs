@@ -1,6 +1,7 @@
 use crate::types::{OrderId, OrderStatus, Price, Qty, Side};
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CancelOrderResult {
     pub order_id: OrderId,
     pub status: OrderStatus,
