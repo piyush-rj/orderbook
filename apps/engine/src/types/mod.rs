@@ -1,14 +1,11 @@
-pub mod order;
-pub mod values;
-pub mod side;
-pub mod trade;
-pub mod order_type;
+pub mod primitives;
+pub mod enums;
+pub mod system;
+pub mod results;
 pub mod errors;
 
-pub use order::Order;
-pub use order_type::OrderType;
-pub use side::Side;
-pub use trade::Trade;
-pub use errors::EngineError;
-
-pub use values::*;
+pub use primitives::*;
+pub use enums::{OrderStatus, OrderType, Side};
+pub use system::{Order, Trade};
+pub use results::{CancelOrderResult, PlaceOrderResult};
+pub use errors::{CancelOrderError, EngineError, PlaceOrderError};

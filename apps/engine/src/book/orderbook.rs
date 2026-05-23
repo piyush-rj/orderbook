@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 use std::collections::{BTreeMap, VecDeque};
-use crate::{EngineError, OrderId, OrderType};
+use crate::{CancelOrderResult, Order, OrderId, OrderStatus, OrderType, PlaceOrderResult};
 use crate::Qty;
 use crate::Trade;
-use crate::order::Order;
 use crate::types::Price;
 use crate::types::Side;
 
@@ -26,17 +25,18 @@ impl OrderBook {
         }
     }
 
-    pub fn place_order(&mut self, side: Side, price: Price, quantity: Qty, order_type: OrderType) -> Vec<Trade> {
-        if quantity == 0 || price == 0 {
-            return Vec::new();
+    pub fn place_order(&mut self, side: Side, price: Price, quantity: Qty, order_type: OrderType) -> PlaceOrderResult {
+        if quantity == 0 {
+            return PlaceOrderResult::rejected(self.next_order_id, quantity);
         }
 
         let mut taker_order = Order::new(self.next_order_id, side, price, quantity, order_type, quantity);
         self.next_order_id += 1;
 
         let mut trades: Vec<Trade> = Vec::new();
-        
-        loop {
+
+        while taker_order.remaining > 0 {
+            
             let side: Side = taker_order.side;
 
             let best_price = match side {
@@ -49,9 +49,12 @@ impl OrderBook {
                 None => break,
             };
 
-            let trade_executable = match side {
-                Side::Buy => taker_order.price >= best_price,
-                Side::Sell => taker_order.price <= best_price, 
+            let trade_executable = match taker_order.order_type {
+                OrderType::Market => true,
+                OrderType::Limit => match side {
+                    Side::Buy => taker_order.price >= best_price,
+                    Side::Sell => taker_order.price <= best_price,
+                },
             };
 
             if !trade_executable {
@@ -94,17 +97,41 @@ impl OrderBook {
 
         }
 
-        if taker_order.remaining > 0 {
-            self.add_as_resting_order(taker_order);
+        let taker_id = taker_order.id;
+        let taker_remaining_qty = taker_order.remaining;
+        let filled_qty = taker_order.quantity - taker_remaining_qty;
+        let taker_order_type = taker_order.order_type;
+
+        if taker_remaining_qty > 0 {
+            match taker_order_type {
+                OrderType::Limit => self.add_as_resting_order(taker_order),
+                OrderType::Market => {
+                    // drop the order
+                }
+            }
         }
 
-        return trades
+        let status = if taker_remaining_qty == 0 {
+            OrderStatus::Filled
+        } else if filled_qty > 0 {
+            match taker_order_type {
+                OrderType::Limit => OrderStatus::PartiallyFilled,
+                OrderType::Market => OrderStatus::Cancelled,
+            }
+        } else {
+            match taker_order_type {
+                OrderType::Limit => OrderStatus::Open,
+                OrderType::Market => OrderStatus::Cancelled,
+            }
+        };
+
+        PlaceOrderResult::new(taker_id, trades, status, filled_qty, taker_remaining_qty)
     }
 
-    pub fn cancel_order(&mut self, order_id: OrderId) -> bool {
+    pub fn cancel_order(&mut self, order_id: OrderId) -> CancelOrderResult {
         let (price, side) = match self.order_map.get(&order_id) {
             Some(&(p, s)) => (p, s),
-            None => return false,
+            None => return CancelOrderResult::new(order_id, OrderStatus::Rejected, 0, Side::Buy, 0),
         };
 
         let queue = match side {
@@ -113,8 +140,8 @@ impl OrderBook {
         };
 
         let order_pos = queue.iter().position(|o| o.id == order_id).unwrap();
-        queue.remove(order_pos);
-    
+        let removed = queue.remove(order_pos).unwrap();
+
         if queue.is_empty() {
             match side {
                 Side::Buy => self.bids.remove(&price),
@@ -123,10 +150,10 @@ impl OrderBook {
         }
 
         self.order_map.remove(&order_id);
-        return true;
+        CancelOrderResult::new(order_id, OrderStatus::Cancelled, removed.remaining, side, price)
     }
 
-     pub fn add_as_resting_order(&mut self, order: Order) {
+    pub fn add_as_resting_order(&mut self, order: Order) {
         self.order_map.insert(order.id, (order.price, order.side));
 
         let side = match order.side {
@@ -145,22 +172,21 @@ impl OrderBook {
         }
     }
 
-     pub fn get_best_ask(&self) -> Option<Price> {
+    pub fn get_best_ask(&self) -> Option<Price> {
         if let Some((price, _)) = self.asks.first_key_value(){
             Some(*price)
         } else {
             None
         } 
-     }
+    }
 
-     pub fn get_best_bid(&self) -> Option<Price> {
+    pub fn get_best_bid(&self) -> Option<Price> {
         if let Some((price, _)) = self.bids.last_key_value() {
             Some(*price)
         } else {
             None
         }
-     }
-    
+    }
 
 }
 
